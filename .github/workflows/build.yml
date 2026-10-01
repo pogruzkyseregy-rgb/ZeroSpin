@@ -1,21 +1,40 @@
-name: Unzip
+name: Build APK
+
 on:
   push:
-    paths: ['ZeroSpin.zip']
+    branches: [ main, master ]
   workflow_dispatch:
-permissions:
-  contents: write
+
 jobs:
-  unzip:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          unzip -o ZeroSpin.zip -d tmp -x 'ZeroSpin/.github/*'
-          cp -r tmp/ZeroSpin/. .
-          rm -rf tmp ZeroSpin.zip
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          git add -A
-          git commit -m "Распаковка проекта"
-          git push
+
+      - name: Unpack project
+        run: |
+          if [ -f ZeroSpin.zip ]; then
+            unzip -o ZeroSpin.zip -d tmp -x 'ZeroSpin/.github/*'
+            cp -r tmp/ZeroSpin/. .
+            rm -rf tmp
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build release APK
+        run: gradle assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/release/app-release.apk ZeroSpin.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZeroSpin-apk
+          path: ZeroSpin.apk
